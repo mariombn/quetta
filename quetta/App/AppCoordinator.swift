@@ -37,6 +37,9 @@ final class AppCoordinator {
     /// Provides the SwiftUI content for the floating panel (set by the app root).
     var panelContent: (() -> AnyView)?
 
+    /// Called when a session fully completes (after summary or without summary). Set by AppState.
+    var onSessionFinished: (() -> Void)?
+
     // Private session machinery
     private var speech: SpeechTranscriptionService?
     private var transcriptionTask: Task<Void, Never>?
@@ -65,6 +68,23 @@ final class AppCoordinator {
         self.connectivity.onChange = { [weak self] connected in
             self?.handleConnectivityChange(connected: connected)
         }
+
+        repairInterruptedSessions()
+    }
+
+    /// If the app terminated mid-session (crash/quit), close out any sessions
+    /// stuck in a non-terminal state, preserving their texts (spec §15).
+    private func repairInterruptedSessions() {
+        let descriptor = FetchDescriptor<MeetingSession>()
+        guard let sessions = try? modelContext.fetch(descriptor) else { return }
+        var repaired = false
+        for session in sessions where !session.status.isTerminal {
+            session.status = .completedWithoutSummary
+            if session.endedAt == nil { session.endedAt = Date() }
+            session.failureMessage = String(localized: "session.interrupted")
+            repaired = true
+        }
+        if repaired { try? modelContext.save() }
     }
 
     var isSessionActive: Bool {
@@ -210,8 +230,8 @@ final class AppCoordinator {
                 text: trimmed,
                 isFinal: true
             )
-            segment.session = session
             modelContext.insert(segment)
+            segment.session = session
             nextOrderIndex += 1
             try? modelContext.save()
             enqueueTranslationIfNeeded(for: segment, in: session)
@@ -231,8 +251,8 @@ final class AppCoordinator {
             orderIndex: segment.orderIndex,
             status: .pending
         )
-        translation.session = session
         modelContext.insert(translation)
+        translation.session = session
         try? modelContext.save()
 
         queue.enqueue(TranslationQueueItem(
@@ -299,8 +319,8 @@ final class AppCoordinator {
             ? String(localized: "session.pausedMarker")
             : String(localized: "session.resumedMarker")
         let marker = TranscriptSegment(orderIndex: nextOrderIndex, kind: kind, text: text, isFinal: true)
-        marker.session = session
         modelContext.insert(marker)
+        marker.session = session
         nextOrderIndex += 1
     }
 
@@ -383,14 +403,25 @@ final class AppCoordinator {
 
     private func completeSummary(sessionID: UUID, result: MeetingSummaryResult, providerName: String?) {
         guard let session = session(with: sessionID) else { return }
-        let summary = MeetingSummary(
-            markdown: result.markdown,
-            providerDisplayName: providerName,
-            modelName: result.modelName
-        )
-        summary.session = session
-        modelContext.insert(summary)
-        session.summary = summary
+        if let summary = session.summary {
+            // Update in place — replacing a cascade to-one relationship deletes
+            // the old object under the observing UI and crashes SwiftData.
+            summary.markdown = result.markdown
+            summary.generatedAt = Date()
+            summary.providerDisplayName = providerName
+            summary.modelName = result.modelName
+            summary.failureMessage = nil
+        } else {
+            let summary = MeetingSummary(
+                markdown: result.markdown,
+                providerDisplayName: providerName,
+                modelName: result.modelName
+            )
+            // Insert BEFORE wiring the relationship; the inverse fills the other side.
+            modelContext.insert(summary)
+            summary.session = session
+        }
+        session.failureMessage = nil
         session.status = .completed
         try? modelContext.save()
         notifications.notifySummaryReady(sessionTitle: session.title)
@@ -400,13 +431,9 @@ final class AppCoordinator {
     private func failSummary(sessionID: UUID, message: String) {
         guard let session = session(with: sessionID) else { return }
         session.status = .completedWithoutSummary
-        session.failureMessage = String(localized: "summary.unavailable")
-        let summary = session.summary ?? MeetingSummary(markdown: "")
-        summary.failureMessage = message
-        if session.summary == nil {
-            summary.session = session
-            modelContext.insert(summary)
-            session.summary = summary
+        session.failureMessage = message
+        if let summary = session.summary {
+            summary.failureMessage = message
         }
         try? modelContext.save()
         notifications.notifySummaryFailed(sessionTitle: session.title)
@@ -428,6 +455,7 @@ final class AppCoordinator {
         currentSession = nil
         translationQueue = nil
         hidePanel()
+        onSessionFinished?()
     }
 
     // MARK: - Panel

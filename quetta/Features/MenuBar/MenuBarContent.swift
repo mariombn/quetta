@@ -10,9 +10,11 @@ import SwiftUI
 import AppKit
 
 struct MenuBarContent: View {
+    @Environment(AppState.self) private var appState
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(AppPreferences.self) private var preferences
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
@@ -38,7 +40,7 @@ struct MenuBarContent: View {
                 Button(String(localized: "menu.finish")) { coordinator.finalize() }
             } else {
                 Button(String(localized: "menu.newSession")) {
-                    activateAndOpen(WindowID.sessionSetup)
+                    appState.showSessionSetup()
                 }
             }
 
@@ -46,12 +48,12 @@ struct MenuBarContent: View {
 
             // 4. Sessions
             Button(String(localized: "menu.sessions")) {
-                activateAndOpen(WindowID.sessions)
+                appState.showSessions()
             }
 
             // 5. Settings
-            SettingsLink {
-                Text(String(localized: "menu.settings"))
+            Button(String(localized: "menu.settings")) {
+                activateAndOpenSettings()
             }
 
             Divider()
@@ -80,8 +82,30 @@ struct MenuBarContent: View {
         return "\(status) · \(mode)"
     }
 
+    private func activateAndOpenSettings() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            NSApp.activate(ignoringOtherApps: true)
+            NSApp.windows
+                .filter { !($0 is NSPanel) && $0.styleMask.contains(.titled) && $0.isVisible }
+                .forEach { $0.makeKeyAndOrderFront(nil) }
+        }
+    }
+
     private func activateAndOpen(_ id: String) {
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        // Switch to regular policy so the window becomes key and appears in Command+Tab.
+        NSApp.setActivationPolicy(.regular)
         openWindow(id: id)
+        // After the menu dismisses, activate the app and bring all regular windows to front.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            NSApp.activate(ignoringOtherApps: true)
+            NSApp.windows
+                .filter { !($0 is NSPanel) && $0.styleMask.contains(.titled) && $0.isVisible }
+                .forEach { $0.makeKeyAndOrderFront(nil) }
+        }
     }
 }

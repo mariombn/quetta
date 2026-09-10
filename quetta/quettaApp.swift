@@ -8,10 +8,12 @@
 
 import SwiftUI
 import SwiftData
+import AppKit
 
 @main
 struct quettaApp: App {
 
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState: AppState
 
     init() {
@@ -36,19 +38,6 @@ struct quettaApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window(String(localized: "window.sessions"), id: WindowID.sessions) {
-            SessionsListView()
-                .quettaEnvironment(appState)
-                .frame(minWidth: 720, minHeight: 460)
-        }
-
-        Window(String(localized: "window.newSession"), id: WindowID.sessionSetup) {
-            SessionSetupView()
-                .quettaEnvironment(appState)
-                .frame(width: 560, height: 560)
-        }
-        .windowResizability(.contentSize)
-
         Settings {
             SettingsView()
                 .quettaEnvironment(appState)
@@ -56,6 +45,46 @@ struct quettaApp: App {
         }
     }
 }
+
+// MARK: - AppDelegate
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Start as accessory so no Dock icon appears when no windows are open.
+        NSApp.setActivationPolicy(.accessory)
+
+        // Promote to regular when any titled window becomes key so the app
+        // appears in Command+Tab and windows behave normally.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let window = notification.object as? NSWindow,
+                  !(window is NSPanel),
+                  window.styleMask.contains(.titled) else { return }
+            NSApp.setActivationPolicy(.regular)
+        }
+
+        // Return to accessory when all titled windows are closed.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let hasRegularWindows = NSApp.windows.contains {
+                    !($0 is NSPanel) && $0.styleMask.contains(.titled) && $0.isVisible
+                }
+                if !hasRegularWindows {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Window IDs
 
 enum WindowID {
     static let onboarding = "onboarding"

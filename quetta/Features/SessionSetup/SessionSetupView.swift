@@ -19,7 +19,7 @@ struct SessionSetupView: View {
 
     @State private var mode: SessionMode = .simple
     @State private var micEnabled = true
-    @State private var systemEnabled = false
+    @State private var systemEnabled = true
     @State private var sourceLanguage: LanguageCode = .portuguese
     @State private var targetLanguage: LanguageCode = .english
     @State private var translationProviderID: UUID?

@@ -2950,6 +2950,23 @@
           }
         }
       }
+    },
+    "session.interrupted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app was closed during this session. Texts were preserved; you can retry the summary."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O app foi encerrado durante esta sessão. Os textos foram preservados; você pode tentar gerar o resumo novamente."
+          }
+        }
+      }
     }
   },
   "version": "1.1"

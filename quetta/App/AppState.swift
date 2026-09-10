@@ -22,6 +22,7 @@ final class AppState {
     let registry: AIProviderRegistry
     let panel: FloatingPanelController
     let coordinator: AppCoordinator
+    let windowManager: WindowManager
 
     init(container: ModelContainer, secretStore: SecretStore = KeychainStore()) {
         self.container = container
@@ -49,6 +50,11 @@ final class AppState {
             panel: panel
         )
         self.coordinator = coordinator
+        self.windowManager = WindowManager()
+
+        coordinator.onSessionFinished = { [weak self] in
+            self?.showSessions()
+        }
 
         coordinator.panelContent = { [weak coordinator, weak preferences, container] in
             guard let coordinator, let preferences else { return AnyView(EmptyView()) }
@@ -62,4 +68,9 @@ final class AppState {
             )
         }
     }
+
+    // MARK: - Window convenience
+
+    func showSessions() { windowManager.showSessions(appState: self) }
+    func showSessionSetup() { windowManager.showSessionSetup(appState: self) }
 }
