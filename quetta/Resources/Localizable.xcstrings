@@ -1608,6 +1608,40 @@
         }
       }
     },
+    "provider.anthropic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude (Anthropic)"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude (Anthropic)"
+          }
+        }
+      }
+    },
+    "provider.baseURL": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Base URL"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL base"
+          }
+        }
+      }
+    },
     "provider.codex": {
       "extractionState": "manual",
       "localizations": {
@@ -1727,6 +1761,23 @@
         }
       }
     },
+    "provider.ollama.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ollama must be running locally. No API key required."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Ollama deve estar rodando localmente. Nenhuma chave de API necessária."
+          }
+        }
+      }
+    },
     "provider.openai": {
       "extractionState": "manual",
       "localizations": {
@@ -1740,6 +1791,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenAI (chave API)"
+          }
+        }
+      }
+    },
+    "provider.openrouter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenRouter"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenRouter"
           }
         }
       }

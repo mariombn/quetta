@@ -27,10 +27,12 @@ final class AIProviderRegistry {
 
     func hasSecret(for config: ProviderConfiguration) -> Bool {
         switch config.kind {
-        case .openAI:
+        case .openAI, .anthropic, .openRouter:
             return ((try? secretStore.read(account: config.keychainAccount)) ?? nil) != nil
         case .codexOAuth:
             return makeOAuthService(for: config).storedTokens() != nil
+        case .ollama:
+            return true
         default:
             return false
         }
@@ -64,7 +66,32 @@ final class AIProviderRegistry {
                 oauth: makeOAuthService(for: config),
                 model: config.modelName ?? "gpt-5.6-luna"
             )
-        case .gemini, .ollama:
+        case .anthropic:
+            let key = ((try? secretStore.read(account: config.keychainAccount)) ?? nil) ?? ""
+            return ClaudeAPIProvider(
+                id: config.id,
+                displayName: config.displayName,
+                apiKey: key,
+                model: config.modelName ?? "claude-sonnet-4-6"
+            )
+        case .openRouter:
+            let key = ((try? secretStore.read(account: config.keychainAccount)) ?? nil) ?? ""
+            return OpenRouterProvider(
+                id: config.id,
+                displayName: config.displayName,
+                apiKey: key,
+                model: config.modelName ?? "meta-llama/llama-3.3-70b-instruct"
+            )
+        case .ollama:
+            let urlString = config.baseURLString ?? "http://localhost:11434/v1"
+            let apiURL = URL(string: urlString) ?? OllamaProvider.defaultBaseURL
+            return OllamaProvider(
+                id: config.id,
+                displayName: config.displayName,
+                model: config.modelName ?? "llama3.2",
+                baseURL: apiURL
+            )
+        case .gemini:
             return nil
         }
     }

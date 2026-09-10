@@ -145,6 +145,19 @@ private struct ProviderRow: View {
                 .font(.caption)
                 .frame(maxWidth: 220)
                 .onSubmit { try? modelContext.save() }
+                if provider.kind == .ollama {
+                    TextField(
+                        String(localized: "provider.baseURL"),
+                        text: Binding(
+                            get: { provider.baseURLString ?? "" },
+                            set: { provider.baseURLString = $0.isEmpty ? nil : $0 }
+                        )
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                    .frame(maxWidth: 220)
+                    .onSubmit { try? modelContext.save() }
+                }
                 if let testMessage {
                     Text(testMessage).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -198,6 +211,7 @@ private struct AddProviderView: View {
     @State private var name: String = "OpenAI"
     @State private var apiKey: String = ""
     @State private var model: String = "gpt-4o-mini"
+    @State private var baseURL: String = ""
     @State private var message: String?
     @State private var saving = false
 
@@ -207,15 +221,25 @@ private struct AddProviderView: View {
             Form {
                 Picker(String(localized: "provider.kind"), selection: $kind) {
                     Text(String(localized: "provider.openai")).tag(ProviderKind.openAI)
+                    Text(String(localized: "provider.anthropic")).tag(ProviderKind.anthropic)
+                    Text(String(localized: "provider.openrouter")).tag(ProviderKind.openRouter)
+                    Text(String(localized: "provider.ollama")).tag(ProviderKind.ollama)
                     Text(String(localized: "provider.codex")).tag(ProviderKind.codexOAuth)
                 }
                 TextField(String(localized: "provider.name"), text: $name)
-                if kind == .openAI {
+                if kind == .openAI || kind == .anthropic || kind == .openRouter {
                     SecureField(String(localized: "provider.apiKey"), text: $apiKey)
                 }
                 TextField(String(localized: "provider.model"), text: $model)
+                if kind == .ollama {
+                    TextField(String(localized: "provider.baseURL"), text: $baseURL)
+                }
                 if kind == .codexOAuth {
                     Text(String(localized: "provider.codex.hint"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if kind == .ollama {
+                    Text(String(localized: "provider.ollama.hint"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -246,6 +270,8 @@ private struct AddProviderView: View {
         .padding(20)
         .frame(width: 440)
         .onChange(of: kind) {
+            apiKey = ""
+            baseURL = ""
             switch kind {
             case .openAI:
                 name = "OpenAI"
@@ -253,6 +279,16 @@ private struct AddProviderView: View {
             case .codexOAuth:
                 name = "ChatGPT (Codex)"
                 model = "gpt-5.6-luna"
+            case .anthropic:
+                name = "Claude"
+                model = "claude-sonnet-4-6"
+            case .openRouter:
+                name = "OpenRouter"
+                model = "meta-llama/llama-3.3-70b-instruct"
+            case .ollama:
+                name = "Ollama"
+                model = "llama3.2"
+                baseURL = "http://localhost:11434/v1"
             default:
                 break
             }
@@ -262,8 +298,9 @@ private struct AddProviderView: View {
     private var canSave: Bool {
         guard !saving else { return false }
         switch kind {
-        case .openAI: return !apiKey.isEmpty
+        case .openAI, .anthropic, .openRouter: return !apiKey.isEmpty
         case .codexOAuth: return CodexOAuthProvider.isAvailable
+        case .ollama: return !model.isEmpty
         default: return false
         }
     }
@@ -274,21 +311,23 @@ private struct AddProviderView: View {
         let config = ProviderConfiguration(
             kind: kind,
             displayName: name.isEmpty ? String(localized: String.LocalizationValue(kind.displayNameKey)) : name,
-            modelName: model.isEmpty ? nil : model
+            modelName: model.isEmpty ? nil : model,
+            baseURLString: kind == .ollama && !baseURL.isEmpty ? baseURL : nil
         )
         let key = apiKey
         Task {
             do {
                 switch kind {
-                case .openAI:
+                case .openAI, .anthropic, .openRouter:
                     try registry.saveAPIKey(key, for: config)
                     let provider = registry.makeProvider(for: config)
                     try await provider?.validateConfiguration()
                 case .codexOAuth:
-                    // Opens the browser for the app's own OAuth login; tokens are
-                    // stored only in the Keychain under this configuration.
                     let service = registry.makeOAuthService(for: config)
                     _ = try await service.login()
+                case .ollama:
+                    let provider = registry.makeProvider(for: config)
+                    try await provider?.validateConfiguration()
                 default:
                     throw ProviderError.unavailableInThisVersion
                 }

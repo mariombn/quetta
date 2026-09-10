@@ -110,13 +110,14 @@ enum TranslationStatus: String, Codable, Sendable {
     case failed
 }
 
-/// Kinds of AI providers. The MVP delivers `openAI` and (experimentally) `codexOAuth`;
-/// the others are declared so the architecture can grow without model changes.
+/// Kinds of AI providers.
 enum ProviderKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case openAI
     case codexOAuth
-    case gemini
+    case anthropic
+    case openRouter
     case ollama
+    case gemini
 
     var id: String { rawValue }
 
@@ -124,17 +125,17 @@ enum ProviderKind: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .openAI: return "provider.openai"
         case .codexOAuth: return "provider.codex"
-        case .gemini: return "provider.gemini"
+        case .anthropic: return "provider.anthropic"
+        case .openRouter: return "provider.openrouter"
         case .ollama: return "provider.ollama"
+        case .gemini: return "provider.gemini"
         }
     }
 
-    /// Whether the provider kind ships as usable in this MVP build.
     var isAvailableInMVP: Bool {
         switch self {
-        case .openAI: return true
-        case .codexOAuth: return true // present but may report itself unavailable at runtime
-        case .gemini, .ollama: return false
+        case .openAI, .codexOAuth, .anthropic, .openRouter, .ollama: return true
+        case .gemini: return false
         }
     }
 }
