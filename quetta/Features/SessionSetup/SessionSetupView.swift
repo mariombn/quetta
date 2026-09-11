@@ -25,6 +25,7 @@ struct SessionSetupView: View {
     @State private var translationProviderID: UUID?
     @State private var summaryProviderID: UUID?
 
+    @State private var micGain: Float = 2.0
     @State private var starting = false
     @State private var errorMessage: String?
 
@@ -70,6 +71,16 @@ struct SessionSetupView: View {
     private var sourcesSection: some View {
         Section(String(localized: "setup.sources")) {
             Toggle(String(localized: "source.microphone"), isOn: $micEnabled)
+            if micEnabled {
+                HStack {
+                    Text(String(localized: "setup.micGain"))
+                        .font(.callout)
+                    Slider(value: $micGain, in: 1.0...4.0, step: 0.5)
+                    Text(String(format: "%.1f×", micGain))
+                        .font(.callout.monospacedDigit())
+                        .frame(width: 38, alignment: .trailing)
+                }
+            }
             Toggle(String(localized: "source.systemAudio"), isOn: $systemEnabled)
             if !micEnabled && !systemEnabled {
                 Text(String(localized: "setup.noSource")).font(.caption).foregroundStyle(.red)
@@ -169,9 +180,11 @@ struct SessionSetupView: View {
         translationProviderID = preferences.defaultTranslationProviderID
         sourceLanguage = preferences.transcriptionLanguage
         targetLanguage = preferences.transcriptionLanguage == .english ? .portuguese : .english
+        micGain = preferences.micGain
     }
 
     private func start() {
+        preferences.micGain = micGain
         starting = true
         Task {
             do {

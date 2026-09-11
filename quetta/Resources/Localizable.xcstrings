@@ -2271,6 +2271,23 @@
         }
       }
     },
+    "setup.micGain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mic gain"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ganho do mic."
+          }
+        }
+      }
+    },
     "setup.languageQualityHint": {
       "extractionState": "manual",
       "localizations": {

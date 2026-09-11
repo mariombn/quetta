@@ -44,6 +44,11 @@ final class AudioCaptureService {
         mixer.setSink(sink)
     }
 
+    /// Sets the amplification factor applied to every microphone buffer.
+    func setMicGain(_ gain: Float) {
+        mixer.micGain = gain
+    }
+
     /// Starts the requested sources. At least one must be requested by the caller.
     func start(microphone micEnabled: Bool, systemAudio sysEnabled: Bool) async {
         mixer.reset()

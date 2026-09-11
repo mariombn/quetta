@@ -161,6 +161,7 @@ final class AppCoordinator {
     private func startCapturePipeline(session: MeetingSession) async {
         let speech = SpeechTranscriptionService()
         self.speech = speech
+        audio.setMicGain(preferences.micGain)
         audio.setBufferSink { [weak speech] buffer in
             speech?.append(buffer)
         }

@@ -9,6 +9,7 @@
 
 import Foundation
 import AVFoundation
+import Accelerate
 
 /// The audio source a buffer originated from.
 enum AudioSource: Sendable {
@@ -29,6 +30,13 @@ nonisolated final class AudioMixer: @unchecked Sendable {
     private let lock = NSLock()
     private var converters: [String: AVAudioConverter] = [:]
     private var sink: (@Sendable (AVAudioPCMBuffer) -> Void)?
+    private var _micGain: Float = 1.0
+
+    /// Amplification factor applied to every microphone buffer (1.0 = no boost).
+    var micGain: Float {
+        get { lock.withLock { _micGain } }
+        set { lock.withLock { _micGain = newValue } }
+    }
 
     /// Sets the destination for converted canonical buffers.
     func setSink(_ sink: (@Sendable (AVAudioPCMBuffer) -> Void)?) {
@@ -54,8 +62,14 @@ nonisolated final class AudioMixer: @unchecked Sendable {
     func process(_ buffer: AVAudioPCMBuffer, from source: AudioSource) {
         guard buffer.frameLength > 0 else { return }
         let inputFormat = buffer.format
+        let gain: Float
+        switch source {
+        case .microphone: gain = micGain
+        case .systemAudio: gain = 1.0
+        }
 
         if inputFormat == Self.canonicalFormat {
+            if gain != 1.0 { applyGain(gain, to: buffer) }
             deliver(buffer)
             return
         }
@@ -86,7 +100,21 @@ nonisolated final class AudioMixer: @unchecked Sendable {
         let status = converter.convert(to: output, error: &error, withInputFrom: inputBlock)
         guard status != .error, error == nil, output.frameLength > 0 else { return }
 
+        if gain != 1.0 { applyGain(gain, to: output) }
         deliver(output)
+    }
+
+    /// Multiplies each sample by `gain` and clips to [-1, 1] in place.
+    private func applyGain(_ gain: Float, to buffer: AVAudioPCMBuffer) {
+        guard let data = buffer.floatChannelData else { return }
+        let length = vDSP_Length(buffer.frameLength)
+        var g = gain
+        var lo: Float = -1.0
+        var hi: Float = 1.0
+        for ch in 0..<Int(buffer.format.channelCount) {
+            vDSP_vsmul(data[ch], 1, &g, data[ch], 1, length)
+            vDSP_vclip(data[ch], 1, &lo, &hi, data[ch], 1, length)
+        }
     }
 
     private func converter(for inputFormat: AVAudioFormat) -> AVAudioConverter? {

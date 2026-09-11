@@ -27,6 +27,7 @@ final class AppPreferences {
         static let hasCompletedOnboarding = "pref.hasCompletedOnboarding"
         static let defaultSummaryProviderID = "pref.defaultSummaryProviderID"
         static let defaultTranslationProviderID = "pref.defaultTranslationProviderID"
+        static let micGain = "pref.micGain"
     }
 
     var interfaceLanguage: InterfaceLanguage {
@@ -69,6 +70,15 @@ final class AppPreferences {
     var defaultTranslationProviderID: UUID? {
         get { defaults.string(forKey: Keys.defaultTranslationProviderID).flatMap(UUID.init(uuidString:)) }
         set { defaults.set(newValue?.uuidString, forKey: Keys.defaultTranslationProviderID) }
+    }
+
+    /// Amplification factor for microphone input (1.0 = no boost, range 1.0–4.0).
+    var micGain: Float {
+        get {
+            let stored = defaults.float(forKey: Keys.micGain)
+            return stored == 0 ? 2.0 : stored
+        }
+        set { defaults.set(newValue, forKey: Keys.micGain) }
     }
 
     // MARK: - Derived
